@@ -17,24 +17,22 @@ library(sf)           # to handle spatial vector data
 library(terra)        # To handle raster data
 library(lubridate)    # To handle dates and times
 library(zoo)    # To smoothen data
-
-## Import the downloaded csv ##################################################
-wildschwein_BE <- read_delim("00_Rawdata/wildschwein_BE_2056.csv",",") # adjust path
-wildschwein_BE <- st_as_sf(wildschwein_BE, coords = c("E", "N"), crs = 2056, remove = FALSE)
 ```
 
 ## Task 0: Datenimport
 
 In diesem Task werden die csv-Daten eingelesen und mit den Koordinaten E und N versehen:
 
-```{r task 0}
-
-head(wildschwein_BE)
+```{r load, highlight=TRUE, message = FALSE}
+## Import csv
+wildschwein_BE <- read_delim("00_Rawdata/wildschwein_BE_2056.csv",",") # adjust path
+wildschwein_BE <- st_as_sf(wildschwein_BE, coords = c("E", "N"), crs = 2056, remove = FALSE)
 ```
+
 ## Task 1: Eine Übersicht verschaffen
 Im Task 1 werden die Daten nach Wildschwein gruppiert und die Zeitdifferenz zwischen den Samples berechnet. Weiter werden folgende Fragen beantwortet:
 
-```{r task 1, include=FALSE}
+```{r task 1, include=TRUE, echo=FALSE}
 # Task 1
 wildschwein_BE <- group_by(wildschwein_BE,TierID)
 wildschwein_BE <- mutate(wildschwein_BE,timelag_num = as.numeric(difftime(lead(DatetimeUTC),DatetimeUTC, units = "secs")))
@@ -47,17 +45,34 @@ n_boars <- as.factor(wildschwein_BE$TierName)
 summary(n_boars)
 ```
 
-* Für wie lange wurden die Wildschweine beprobt? *Die Wildschweine wurden vom* `r min(wildschwein_BE$DatetimeUTC)` *bis * `r max(wildschwein_BE$DatetimeUTC)` *beprobt. Die Daten wurden gleichzeitig erhoben.*
+* Für wie lange wurden die Wildschweine beprobt? *Die Wildschweine wurden vom* `r min(wildschwein_BE$DatetimeUTC)` *bis * `r max(wildschwein_BE$DatetimeUTC)` *beprobt. Die Daten wurden mehrheitlich gleichzeitig erhoben.*
 
-* Was ist der zeitliche Intervall zwischen zwei Lokationen? *Der Intervall beträgt *`r round(mean(x = wildschwein_BE$timelag_num, na.rm = TRUE),0)` *Sekunden.*
+* Was ist der zeitliche Intervall zwischen zwei Lokationen? *Der durchschnittliche Intervall beträgt *`r round(mean(x = wildschwein_BE$timelag_num, na.rm = TRUE),0)` *Sekunden. In einem Histofgram dargestellt:*
 
-```{r task 2, include=FALSE}
+```{r task 1_2, include=TRUE, echo=FALSE, warning=FALSE}
+p1 <- ggplot(wildschwein_BE, aes(x = timelag))
+p1 + geom_histogram(binwidth = 10) + 
+  scale_y_log10() +
+  scale_x_continuous(limits = c(0,15000)) + 
+  geom_vline(xintercept = 0, lty = 2, alpha = 0.5)
+```
+
+## Task 2: Herleiten von Bewegungsparameter (Speed)
+
+In Task 2 wird mit Piping grundlegende Bewegungsparameter berechnet. Mit der euklidischen Distanz werden aus zwei Lokationen die Schrittlänge *steplength* berechnet. Anschliessend wird diese durch den Zeitschritt *timelag* geteilt um die Geschwindigkeit zu berechnen. 
+
+```{r task 2, message = FALSE}
 # Task 2     
-wildschwein_BE %>%                           # Take wildschwein...
-  group_by(TierID) %>%                    # ...group it by TierID
+wildschwein_BE <- wildschwein_BE %>%                            # Take a boar..
+  group_by(TierID) %>%                                          # group it
   mutate(steplength = sqrt(((E-lead(E,1))^2+(N-lead(N,1))^2))) %>% 
-  mutate(speed = steplength/timelag) 
+  mutate(speed = steplength/timelag)                            #calculate speed
+```
 
+## Task 3: Cross-scale Bewegungsanalyse
+Mit einem neuen Dataset, welches nur ein Wildschwein enthält, werden Cross-scale Bewegungsanalysen durchgeführt. Mit den Funktionen *slice* und *seq* werden fix definierte Abschnitte herausextrahiert. Mit den extrahierten Daten werden die identischen Parameter aus Task 2 berechnet und mit den Orginaldaten verglichen.
+
+```{r task 3_1, highlight=TRUE, message = FALSE}
 # Task 3
 caro <- read_delim("00_Rawdata/caro60.csv",",") # adjust path
 caro <- st_as_sf(caro, coords = c("E", "N"), crs = 2056, remove = FALSE)
@@ -84,31 +99,57 @@ caro_9 <- caro %>%
   mutate(timelag = as.integer(difftime(lead(DatetimeUTC),DatetimeUTC, units = "secs"))) %>% 
   mutate(steplength = sqrt(((E-lead(E,1))^2+(N-lead(N,1))^2))) %>% 
   mutate(speed = steplength/timelag)
+```
 
+Die Datasets werden dadurch erheblich kürzer. Gut erkennbar hier: 
+
+```{r task 3_2, include=TRUE, echo=TRUE, results='hold'}
+# compare the sliced datasets
 nrow(caro_0)
 nrow(caro_3)
 nrow(caro_6)
 nrow(caro_9)
+```
+
+\newpage
+
+In einem Plot sind die Unterschiede zwischen den orginalen und den extrahierten Daten gut ersichtlich:
+
+```{r task 3_3, include=TRUE, echo=TRUE, results='hold'}
 # compare 3 minutes data to original
-ggplot() +
+p2 <- ggplot() +
   geom_path(data = caro_3, aes(x=E,y=N), colour = "blue") +
   geom_path(data = caro, aes(x=E,y=N), colour = "black") +
-  labs(title = "Comparing original- with 3 minutes-resampled data", subtitle = "black: original data, pink: 3 minutes data") + 
+  labs(title = "Comparing original- with 3 minutes-resampled data", 
+       subtitle = "black: original data, pink: 3 minutes data") + 
   theme_classic()
 
 # compare 6 minutes data to original
-ggplot() +
+p3 <- ggplot() +
   geom_path(data = caro_6, aes(x=E,y=N), colour = "blue") +
   geom_path(data = caro_0, aes(x=E,y=N), colour = "black") +
-  labs(title = "Comparing original- with 3 minutes-resampled data", subtitle = "black: original data, pink: 3 minutes data") + 
+  labs(title = "Comparing original- with 3 minutes-resampled data", 
+       subtitle = "black: original data, pink: 3 minutes data") + 
   theme_classic()
 
 # compare 9 minutes data to original
-ggplot() +
+p4 <- ggplot() +
   geom_path(data = caro_9, aes(x=E,y=N), colour = "blue") +
   geom_path(data = caro_0, aes(x=E,y=N), colour = "black") +
-  labs(title = "Comparing original- with 3 minutes-resampled data", subtitle = "black: original data, pink: 3 minutes data") + 
+  labs(title = "Comparing original- with 3 minutes-resampled data", 
+       subtitle = "black: original data, pink: 3 minutes data") + 
   theme_classic()
+```
+
+```{r task 3_4, echo=FALSE, results='hold'}
+p2
+p3
+p4
+```
+
+Weiter können Unterschiede in den berechneten Geschwindigkeiten festgestellt werden:
+
+```{r task 3_5, include=TRUE, echo=FALSE, warning=FALSE}
 # Compare different speeds
 ggplot() +
   geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed), colour = "black") +
@@ -123,14 +164,18 @@ ggplot() +
   scale_x_datetime(date_breaks = "1 hours", 
                    date_labels = "%H:%M") +
   theme_classic()
+```
 
+## Task 4
+
+```{r task 4, include=TRUE, echo=FALSE, warning=FALSE}
 # Task 4
 caro_0 <- caro_0 %>% 
   mutate(speed_5 = rollmean(caro_0$speed,k = 5,fill = NA,align = "left")) %>% 
   mutate(speed_15 = rollmean(caro_0$speed,k = 15,fill = NA,align = "left")) %>% 
   mutate(speed_30 = rollmean(caro_0$speed,k = 30,fill = NA,align = "left"))
 
-ggplot() +
+p6 <- ggplot() +
   geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed), colour = "black") +
   geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed_5), colour = "blue") +
   geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed_15), colour = "red") +
@@ -146,14 +191,3 @@ ggplot() +
 
 ```
 
-
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
