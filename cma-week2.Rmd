@@ -16,7 +16,8 @@ library(ggplot2)      # to visualize data
 library(sf)           # to handle spatial vector data
 library(terra)        # To handle raster data
 library(lubridate)    # To handle dates and times
-library(zoo)    # To smoothen data
+library(zoo)          # To smoothen data
+library(cowplot)
 ```
 
 ## Task 0: Datenimport
@@ -54,7 +55,8 @@ p1 <- ggplot(wildschwein_BE, aes(x = timelag))
 p1 + geom_histogram(binwidth = 10) + 
   scale_y_log10() +
   scale_x_continuous(limits = c(0,15000)) + 
-  geom_vline(xintercept = 0, lty = 2, alpha = 0.5)
+  geom_vline(xintercept = 0, lty = 2, alpha = 0.5) +
+  theme_classic()
 ```
 
 ## Task 2: Herleiten von Bewegungsparameter (Speed)
@@ -111,8 +113,6 @@ nrow(caro_6)
 nrow(caro_9)
 ```
 
-\newpage
-
 In einem Plot sind die Unterschiede zwischen den orginalen und den extrahierten Daten gut ersichtlich:
 
 ```{r task 3_3, include=TRUE, echo=TRUE, results='hold'}
@@ -141,10 +141,15 @@ p4 <- ggplot() +
   theme_classic()
 ```
 
+
 ```{r task 3_4, echo=FALSE, results='hold'}
 p2
 p3
 p4
+
+# cowplot::plot_grid(p2, axis = 'l', align = 'h', ncol = 1, nrow = 1, scale = 0.6, greedy = FALSE)
+# cowplot::plot_grid(p3, axis = 'l',ncol = 1, nrow = 1, scale = 0.6, greedy = FALSE)
+# cowplot::plot_grid(p4, axis = 'l',ncol = 1, nrow = 1, scale = 0.6, greedy = FALSE)
 ```
 
 Weiter können Unterschiede in den berechneten Geschwindigkeiten festgestellt werden:
@@ -175,7 +180,7 @@ caro_0 <- caro_0 %>%
   mutate(speed_15 = rollmean(caro_0$speed,k = 15,fill = NA,align = "left")) %>% 
   mutate(speed_30 = rollmean(caro_0$speed,k = 30,fill = NA,align = "left"))
 
-p6 <- ggplot() +
+ggplot() +
   geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed), colour = "black") +
   geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed_5), colour = "blue") +
   geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed_15), colour = "red") +
