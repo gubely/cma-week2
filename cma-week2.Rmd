@@ -16,6 +16,7 @@ library(ggplot2)      # to visualize data
 library(sf)           # to handle spatial vector data
 library(terra)        # To handle raster data
 library(lubridate)    # To handle dates and times
+library(zoo)    # To smoothen data
 
 ## Import the downloaded csv ##################################################
 
@@ -94,6 +95,26 @@ ggplot() +
        y = "Speed (m/s)", 
        title = "Comparing derived speed at different sampling intervals",
        subtitle = "black: original, blue: 3 minutes, red: 6 minutes, green: 9 minutes") +    
+  scale_y_continuous(limits = c(0,1.2)) +
+  scale_x_datetime(date_breaks = "1 hours", 
+                   date_labels = "%H:%M") +
+  theme_classic()
+
+# Task 4
+caro_0 <- caro_0 %>% 
+  mutate(speed_5 = rollmean(caro_0$speed,k = 5,fill = NA,align = "left")) %>% 
+  mutate(speed_15 = rollmean(caro_0$speed,k = 15,fill = NA,align = "left")) %>% 
+  mutate(speed_30 = rollmean(caro_0$speed,k = 30,fill = NA,align = "left"))
+
+ggplot() +
+  geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed), colour = "black") +
+  geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed_5), colour = "blue") +
+  geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed_15), colour = "red") +
+  geom_line(data = caro_0, aes(x=DatetimeUTC, y=speed_30), colour = "green") +
+  labs(x = "Time",
+       y = "Speed (m/s)", 
+       title = "Comparing derived speed at different sampling intervals",
+       subtitle = "black: original, blue: k = 5, red: k = 15, green: k = 30") +    
   scale_y_continuous(limits = c(0,1.2)) +
   scale_x_datetime(date_breaks = "1 hours", 
                    date_labels = "%H:%M") +
