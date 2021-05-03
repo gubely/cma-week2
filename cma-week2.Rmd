@@ -50,9 +50,17 @@ summary(n_boars)
 
 * Für wie lange wurden die Wildschweine beprobt? *Die Wildschweine wurden vom* `r min(wildschwein_BE$DatetimeUTC)` *bis * `r max(wildschwein_BE$DatetimeUTC)` *beprobt. Die Daten wurden mehrheitlich gleichzeitig erhoben.*
 
+```{r task 1_2, include=TRUE, echo=TRUE, warning=FALSE}
+ggplot(wildschwein_BE) +
+  geom_line(mapping=aes(x=DatetimeUTC,y=timelag,colour=TierID)) +
+  theme_classic()
+```
+
+\newpage
+
 * Was ist der zeitliche Intervall zwischen zwei Lokationen? *Der durchschnittliche Intervall beträgt *`r round(mean(x = wildschwein_BE$timelag_num, na.rm = TRUE),0)` *Sekunden. In einem Histogram dargestellt:*
 
-```{r task 1_2, include=TRUE, echo=FALSE, warning=FALSE}
+```{r task 1_3, include=TRUE, echo=FALSE, warning=FALSE}
 p1 <- ggplot(wildschwein_BE, aes(x = timelag))
 p1 + geom_histogram(binwidth = 10) + 
   scale_y_log10() +
